@@ -2,29 +2,37 @@ variable "ssh_location" {
     default = "0.0.0.0/0"
 }
 
+variable "webserver_port" {
+    default = "8080"
+}
+
+variable "ssh_port" {
+    default = "22"
+}
+
 provider "aws" {
-  region = "eu-west-2"
+    region = "eu-west-2"
 }
 
 resource "aws_instance" "example" {
-  ami = "ami-1a7f6d7e"
-  instance_type = "t2.micro"
-  vpc_security_group_ids = ["${aws_security_group.instance.id}"]
-  key_name = "EC2_Dunstan"
-  user_data = <<-EOF
+    ami = "ami-1a7f6d7e"
+    instance_type = "t2.micro"
+    vpc_security_group_ids = ["${aws_security_group.instance.id}"]
+    key_name = "EC2_Dunstan"
+    user_data = <<-EOF
               #!/bin/bash
               yum update -y
               yum install -y busybox
               echo "Hello World" > index.html
-              nohup busybox httpd -f -p 80 &
+              nohup busybox httpd -f -p "${var.webserver_port}" &
               EOF
-  
-  tags {
-    Name = "terraform-example"
-  }
+    
+    tags {
+	Name = "terraform-example"
+    }
 }
 resource "aws_security_group" "instance" {
-  name = "terraform-example-instance"
+    name = "terraform-example-instance"
 
     egress {
 	from_port       = 0
@@ -33,16 +41,20 @@ resource "aws_security_group" "instance" {
 	cidr_blocks     = ["${var.ssh_location}"]
     }
 
-  ingress{
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
-    cidr_blocks = ["${var.ssh_location}"]
-  }
-  ingress{
-    from_port = 22
-    to_port = 22
-    protocol = "tcp"
-    cidr_blocks = ["${var.ssh_location}"]
-  }
+    ingress{
+	from_port = "${var.webserver_port}"
+	to_port = "${var.webserver_port}"
+	protocol = "tcp"
+	cidr_blocks = ["${var.ssh_location}"]
+    }
+    ingress{
+	from_port = "${var.ssh_port}"
+	to_port = "${var.ssh_port}"
+	protocol = "tcp"
+	cidr_blocks = ["${var.ssh_location}"]
+    }
+}
+
+output "public_ip" {
+    value = "${aws_instance.example.public_ip}"
 }
